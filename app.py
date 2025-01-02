@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from datetime import datetime
@@ -40,26 +40,27 @@ class NutritionTracker:
                         'token_uri': st.secrets["client_secrets"]["web"]["token_uri"],
                         'auth_provider_x509_cert_url': st.secrets["client_secrets"]["web"]["auth_provider_x509_cert_url"],
                         'client_secret': st.secrets["client_secrets"]["web"]["client_secret"],
-                        'redirect_uris': st.secrets["client_secrets"]["web"]["redirect_uris"]
+                        'redirect_uris': [st.secrets["client_secrets"]["web"]["redirect_uris"][-1]]  # URL del despliegue
                     }
                 }
 
-                flow = InstalledAppFlow.from_client_config(
+                flow = Flow.from_client_config(
                     client_config,
                     SCOPES
                 )
+                flow.redirect_uri = st.secrets["client_secrets"]["web"]["redirect_uris"][-1]
 
                 # Generar URL de autorización
-                auth_url, _ = flow.authorization_url()
-                st.markdown(f"[Click aquí para autorizar]({auth_url})")
+                auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline', include_granted_scopes='true')
+                st.markdown(f"[Haz clic aquí para autorizar]({auth_url})")
 
                 # Campo para el código de autorización
-                code = st.text_input('Ingresa el código de autorización:')
+                code = st.text_input("Ingresa el código de autorización:")
                 if code:
                     flow.fetch_token(code=code)
                     st.session_state['token'] = flow.credentials.to_json()
                     st.success("¡Autorización exitosa!")
-                    st.rerun()
+                    st.experimental_rerun()
                 return None
 
             # Usar credenciales existentes
@@ -166,22 +167,22 @@ class NutritionTracker:
         return None
 
 def main():
-    st.title("📊 Seguimiento Nutricional")
+    st.title("\ud83d\udcca Seguimiento Nutricional")
 
     # Inicializar tracker
     if 'tracker' not in st.session_state:
         st.session_state.tracker = NutritionTracker()
 
     # Autenticación
-    st.sidebar.header("👤 Usuario")
+    st.sidebar.header("\ud83d\udc64 Usuario")
     usuario = st.sidebar.text_input("Email:", key="user_email")
 
     if not usuario:
-        st.warning("⚠️ Por favor, ingresa tu email para comenzar.")
+        st.warning("\u26a0\ufe0f Por favor, ingresa tu email para comenzar.")
         return
 
     # Metas diarias
-    st.sidebar.header("🎯 Metas Diarias")
+    st.sidebar.header("\ud83c\udfaf Metas Diarias")
     calorias_meta = st.sidebar.number_input(
         "Meta de calorías (kcal):",
         min_value=1000,
@@ -198,12 +199,12 @@ def main():
 
     # Menú principal
     menu = st.sidebar.selectbox(
-        "📋 Menú:",
+        "\ud83d\udccb Menú:",
         ["Registrar Alimentos", "Resumen Diario"]
     )
 
     if menu == "Registrar Alimentos":
-        st.header("🍽️ Registro de Alimentos")
+        st.header("\ud83c\udf7d\ufe0f Registro de Alimentos")
 
         col1, col2 = st.columns(2)
         with col1:
@@ -214,12 +215,12 @@ def main():
         with col2:
             cantidad = st.number_input("Cantidad (g):", min_value=1.0, step=1.0)
 
-        if st.button("📝 Registrar"):
+        if st.button("\ud83d\udd8b\ufe0f Registrar"):
             if st.session_state.tracker.register_food(usuario, alimento, cantidad):
-                st.success("✅ Alimento registrado correctamente")
+                st.success("\u2705 Alimento registrado correctamente")
 
     elif menu == "Resumen Diario":
-        st.header("📈 Resumen del Día")
+        st.header("\ud83d\udcca Resumen del Día")
         resumen = st.session_state.tracker.get_daily_summary()
 
         if resumen is not None:
@@ -241,7 +242,7 @@ def main():
 
             st.table(resumen)
         else:
-            st.info("📝 No hay registros para hoy")
+            st.info("\ud83d\udd8d No hay registros para hoy")
 
 if __name__ == "__main__":
     main()
