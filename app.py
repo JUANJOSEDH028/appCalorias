@@ -60,8 +60,10 @@ class NutritionTracker:
                     except Exception as e:
                         st.error(f"Error al procesar el código de autorización: {str(e)}")
                 else:
-                    st.error("No se recibió un código de autorización válido.")
+                        st.error("No se recibió un código de autorización válido.")
 
+                        st.write(f"Código de autorización recibido: {code}")
+                        st.write(f"Tipo de dato del código: {type(code)}")
 
 
                 if code:
