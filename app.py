@@ -47,7 +47,7 @@ class NutritionTracker:
                 auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline', include_granted_scopes='true')
                 st.markdown(f"[Haz clic aquí para autorizar]({auth_url})")
 
-                code = st.query_params().get('code')
+                code = st.query_params.get('code')
                 if code:
                     try:
                         if isinstance(code, list):
@@ -179,27 +179,30 @@ class NutritionTracker:
             ].sum()
         return None
 
-def close_day(usuario):
-    """Cierra el día y prepara un nuevo archivo para el siguiente."""
-    if 'historial' in st.session_state and not st.session_state.historial.empty:
-        try:
-            # Nombre del archivo con la fecha actual
-            fecha_actual = datetime.now().strftime("%Y-%m-%d")
-            filename = f"historial_consumo_{usuario}_{fecha_actual}.csv"
-
-            # Guardar el archivo actual en Drive
-            tracker = st.session_state.tracker
-            if tracker.upload_to_drive(usuario, st.session_state.historial.to_csv(index=False), filename):
-                st.success(f"✅ Archivo '{filename}' guardado exitosamente en Google Drive.")
-
-            # Limpiar el historial para un nuevo día
-            st.session_state.historial = pd.DataFrame()
-            st.info("📆 El día ha sido cerrado. Puedes comenzar un nuevo día.")
-
-        except Exception as e:
-            st.error(f"⚠️ Error al cerrar el día: {str(e)}")
+def calculate_requirements(gender, age, weight, target_weight, goal):
+    """Calcula los requerimientos diarios de calorías y proteínas."""
+    if gender == 'Hombre':
+        bmr = 10 * weight + 6.25 * 170 - 5 * age + 5  # Altura promedio de 170 cm
     else:
-        st.warning("⚠️ No hay datos en el historial para guardar.")
+        bmr = 10 * weight + 6.25 * 160 - 5 * age - 161  # Altura promedio de 160 cm
+
+    if goal == 'Déficit calórico':
+        calories = bmr - 500
+    elif goal == 'Superávit calórico':
+        calories = bmr + 500
+    else:
+        calories = bmr
+
+    protein = weight * 1.6 if weight > target_weight else target_weight * 1.6
+    return calories, protein
+
+def calculate_days_to_goal(current_weight, target_weight, daily_caloric_deficit):
+    """Calcula los días necesarios para alcanzar el peso ideal."""
+    if daily_caloric_deficit <= 0:
+        return float('inf')  # No se perderá peso sin déficit calórico
+    calories_per_kg = 7700  # Calorías aproximadas en 1 kg de grasa
+    total_calories_to_burn = abs(target_weight - current_weight) * calories_per_kg
+    return total_calories_to_burn / daily_caloric_deficit
 
 def main():
     st.title("📊 Seguimiento Nutricional")
@@ -210,32 +213,41 @@ def main():
     if 'is_authenticated' not in st.session_state:
         st.session_state['is_authenticated'] = False
 
-    st.sidebar.header("👤 Usuario")
-    usuario = st.sidebar.text_input("Email:", key="user_email")
+    # Preguntas iniciales
+    st.sidebar.header("👤 Datos Personales")
+    gender = st.sidebar.selectbox("Género:", ["Hombre", "Mujer"])
+    age = st.sidebar.number_input("Edad (años):", min_value=10, max_value=100, step=1)
+    weight = st.sidebar.number_input("Peso actual (kg):", min_value=30.0, max_value=300.0, step=0.1)
+    target_weight = st.sidebar.number_input("Peso ideal (kg):", min_value=30.0, max_value=300.0, step=0.1)
+    goal = st.sidebar.selectbox("Objetivo:", ["Mantenimiento", "Déficit calórico", "Superávit calórico"])
 
-    if not usuario:
-        st.warning("⚠️ Por favor, ingresa tu email para comenzar.")
-        return
+    calories, protein = calculate_requirements(gender, age, weight, target_weight, goal)
 
-    if not st.session_state['is_authenticated']:
-        st.warning("⚠️ Por favor, autentícate con Google para continuar.")
-        st.session_state.tracker.get_drive_service(usuario)
-        return
+    st.sidebar.markdown(f"### Requerimientos diarios:")
+    st.sidebar.markdown(f"- Calorías: {calories:.0f} kcal")
+    st.sidebar.markdown(f"- Proteínas: {protein:.1f} g")
 
-    # Si ya está autenticado, mostrar la aplicación principal
+    # Calcular días para alcanzar el peso ideal
+    if st.sidebar.button("Calcular tiempo para alcanzar el peso ideal"):
+        burned_calories = st.number_input("Calorías quemadas hoy (kcal):", min_value=0, step=10)
+        daily_deficit = calories - burned_calories
+        days_to_goal = calculate_days_to_goal(weight, target_weight, daily_deficit)
+        st.sidebar.markdown(f"### Tiempo estimado para alcanzar el peso ideal: {days_to_goal:.1f} días")
+
+    # Menú principal
     st.sidebar.header("🎯 Metas Diarias")
     calorias_meta = st.sidebar.number_input(
         "Meta de calorías (kcal):",
         min_value=1000,
         max_value=5000,
-        value=2000
+        value=int(calories)
     )
 
     proteinas_meta = st.sidebar.number_input(
         "Meta de proteínas (g):",
         min_value=30,
         max_value=300,
-        value=150
+        value=int(protein)
     )
 
     menu = st.sidebar.selectbox(
@@ -256,7 +268,7 @@ def main():
             cantidad = st.number_input("Cantidad (g):", min_value=1.0, step=1.0)
 
         if st.button("📝 Registrar"):
-            if st.session_state.tracker.register_food(usuario, alimento, cantidad):
+            if st.session_state.tracker.register_food("usuario", alimento, cantidad):
                 st.success("✅ Alimento registrado correctamente")
 
     elif menu == "Resumen Diario":
@@ -287,7 +299,7 @@ def main():
     elif menu == "Cerrar Día":
         st.header("🔒 Cerrar Día")
         if st.button("🔒 Cerrar Día"):
-            close_day(usuario)
+            close_day("usuario")
 
 if __name__ == "__main__":
     main()
