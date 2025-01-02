@@ -47,12 +47,11 @@ class NutritionTracker:
                 auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline', include_granted_scopes='true')
                 st.markdown(f"[Haz clic aquí para autorizar]({auth_url})")
 
-                code = st.text_input("Ingresa el código de autorización:")
+                code = st.experimental_get_query_params().get('code')
                 if code:
-                    flow.fetch_token(code=code)
+                    flow.fetch_token(code=code[0])
                     st.session_state['token'] = flow.credentials.to_json()
                     st.session_state['is_authenticated'] = True
-                    st.success("¡Autorización exitosa!")
                     st.experimental_rerun()
                 return None
 
@@ -104,53 +103,6 @@ class NutritionTracker:
         except Exception as e:
             st.error(f"Error al subir archivo: {str(e)}")
             return False
-
-    def register_food(self, usuario, alimento_nombre, cantidad):
-        """Registra un alimento consumido."""
-        try:
-            if self.data.empty:
-                st.error("No se han cargado los datos de alimentos")
-                return False
-
-            alimento = self.data[self.data["name"] == alimento_nombre].iloc[0]
-            valores = alimento[["Calories", "Fat (g)", "Protein (g)", "Carbohydrate (g)"]] * (cantidad / 100)
-
-            nuevo_registro = pd.DataFrame({
-                'Fecha y Hora': [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
-                'Alimento': [alimento["name"]],
-                'Cantidad (g)': [cantidad],
-                'Calorías': [valores["Calories"]],
-                'Grasas (g)': [valores["Fat (g)"]],
-                'Proteínas (g)': [valores["Protein (g)"]],
-                'Carbohidratos (g)': [valores["Carbohydrate (g)"]]
-            })
-
-            if 'historial' not in st.session_state:
-                st.session_state.historial = nuevo_registro
-            else:
-                st.session_state.historial = pd.concat(
-                    [st.session_state.historial, nuevo_registro],
-                    ignore_index=True
-                )
-
-            filename = f"historial_consumo_{usuario}.csv"
-            return self.upload_to_drive(
-                usuario,
-                st.session_state.historial.to_csv(index=False),
-                filename
-            )
-
-        except Exception as e:
-            st.error(f"Error al registrar alimento: {str(e)}")
-            return False
-
-    def get_daily_summary(self):
-        """Obtiene el resumen diario de nutrición."""
-        if 'historial' in st.session_state and not st.session_state.historial.empty:
-            return st.session_state.historial[
-                ["Calorías", "Grasas (g)", "Proteínas (g)", "Carbohidratos (g)"]
-            ].sum()
-        return None
 
 def main():
     st.title("📊 Seguimiento Nutricional")
@@ -206,33 +158,8 @@ def main():
             cantidad = st.number_input("Cantidad (g):", min_value=1.0, step=1.0)
 
         if st.button("📝 Registrar"):
-            if st.session_state.tracker.register_food(usuario, alimento, cantidad):
+            if st.session_state.tracker.upload_to_drive(usuario, alimento, cantidad):
                 st.success("✅ Alimento registrado correctamente")
-
-    elif menu == "Resumen Diario":
-        st.header("📈 Resumen del Día")
-        resumen = st.session_state.tracker.get_daily_summary()
-
-        if resumen is not None:
-            col1, col2 = st.columns(2)
-
-            with col1:
-                st.metric(
-                    "Calorías",
-                    f"{resumen['Calorías']:.1f} kcal",
-                    f"{resumen['Calorías'] - calorias_meta:.1f} kcal"
-                )
-
-            with col2:
-                st.metric(
-                    "Proteínas",
-                    f"{resumen['Proteínas (g)']:.1f} g",
-                    f"{resumen['Proteínas (g)'] - proteinas_meta:.1f} g"
-                )
-
-            st.table(resumen)
-        else:
-            st.info("📝 No hay registros para hoy")
 
 if __name__ == "__main__":
     main()
