@@ -56,7 +56,6 @@ class NutritionTracker:
                         st.session_state['token'] = flow.credentials.to_json()
                         st.session_state['is_authenticated'] = True
                         st.success("¡Autorización exitosa!")
-                        st.session_state['is_authenticated'] = True
                     except Exception as e:
                         st.error(f"Error al procesar el código de autorización: {str(e)}")
                 else:
@@ -140,12 +139,15 @@ class NutritionTracker:
                     ignore_index=True
                 )
 
-            filename = f"historial_consumo_{usuario}.csv"
-            return self.upload_to_drive(
+            # Backup automático en Drive
+            filename = f"historial_consumo_{usuario}_actual.csv"
+            self.upload_to_drive(
                 usuario,
                 st.session_state.historial.to_csv(index=False),
                 filename
             )
+
+            return True
 
         except Exception as e:
             st.error(f"Error al registrar alimento: {str(e)}")
@@ -270,5 +272,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
