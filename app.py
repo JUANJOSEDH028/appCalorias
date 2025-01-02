@@ -33,18 +33,25 @@ class NutritionTracker:
             if 'token' not in st.session_state:
                 # Configurar credenciales desde secrets
                 client_config = {
-                    'web': st.secrets["client_secrets"]["web"]
+                    'web': {
+                        'client_id': st.secrets["client_secrets"]["web"]["client_id"],
+                        'project_id': st.secrets["client_secrets"]["web"]["project_id"],
+                        'auth_uri': st.secrets["client_secrets"]["web"]["auth_uri"],
+                        'token_uri': st.secrets["client_secrets"]["web"]["token_uri"],
+                        'auth_provider_x509_cert_url': st.secrets["client_secrets"]["web"]["auth_provider_x509_cert_url"],
+                        'client_secret': st.secrets["client_secrets"]["web"]["client_secret"],
+                        'redirect_uris': st.secrets["client_secrets"]["web"]["redirect_uris"]
+                    }
                 }
 
                 flow = InstalledAppFlow.from_client_config(
-                    client_config, 
-                    SCOPES,
-                    redirect_uri=st.secrets["client_secrets"]["web"]["redirect_uris"][0]
+                    client_config,
+                    SCOPES
                 )
 
                 # Generar URL de autorización
-                auth_url = flow.authorization_url()
-                st.markdown(f"[Click aquí para autorizar]({auth_url[0]})")
+                auth_url, _ = flow.authorization_url()
+                st.markdown(f"[Click aquí para autorizar]({auth_url})")
 
                 # Campo para el código de autorización
                 code = st.text_input('Ingresa el código de autorización:')
@@ -57,7 +64,7 @@ class NutritionTracker:
 
             # Usar credenciales existentes
             creds = Credentials.from_authorized_user_info(
-                json.loads(st.session_state['token']), 
+                json.loads(st.session_state['token']),
                 SCOPES
             )
             return build('drive', 'v3', credentials=creds)
