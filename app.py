@@ -123,7 +123,7 @@ class NutritionTracker:
 
             nuevo_registro = pd.DataFrame({
                 'Fecha y Hora': [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
-                'Alimento': [alimento["name"]],
+                'Alimento': [alimento["food"]],
                 'Cantidad (g)': [cantidad],
                 'Calorías': [valores["Calories"]],
                 'Grasas (g)': [valores["Fat (g)"]],
