@@ -47,7 +47,8 @@ class NutritionTracker:
                 auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline', include_granted_scopes='true')
                 st.markdown(f"[Haz clic aquí para autorizar]({auth_url})")
 
-                code = st.experimental_get_query_params().get('code')
+                code = st.query_params.get('code')
+
                 if code:
                     flow.fetch_token(code=code[0])
                     st.session_state['token'] = flow.credentials.to_json()
