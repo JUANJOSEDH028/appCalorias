@@ -14,7 +14,7 @@ SCOPES = ['https://www.googleapis.com/auth/drive.file']
 class NutritionTracker:
     def __init__(self):
         """Inicializa el tracker con los datos de alimentos."""
-        self.data = self.load_food_data("https://raw.githubusercontent.com/JUANJOSEDH028/calorias/main/alimentos_limpios.csv")
+        self.data = self.load_food_data("https://raw.githubusercontent.com/JUANJOSEDH028/appCalorias/main/alimentos_limpios.csv")
 
     @st.cache_data
     def load_food_data(file_path):
