@@ -49,7 +49,7 @@ class NutritionTracker:
 
                
 
-               code = st.query_params.get('code')
+                code = st.query_params.get('code')
 
                 if code:
                     try:
