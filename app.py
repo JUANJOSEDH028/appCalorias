@@ -219,8 +219,11 @@ def main():
     if not st.session_state['is_authenticated']:
         st.warning("⚠️ Por favor, autentícate con Google para continuar.")
         st.session_state.tracker.get_drive_service(usuario)
+        if st.session_state.get('is_authenticated', False):
+            st.success("✅ ¡Autorización exitosa!")
         return
 
+    # Si ya está autenticado, mostrar la aplicación principal
     st.sidebar.header("🎯 Metas Diarias")
     calorias_meta = st.sidebar.number_input(
         "Meta de calorías (kcal):",
@@ -286,6 +289,7 @@ def main():
         st.header("🔒 Cerrar Día")
         if st.button("🔒 Cerrar Día"):
             close_day(usuario)
+
 
 if __name__ == "__main__":
     main()
