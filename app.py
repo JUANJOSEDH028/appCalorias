@@ -47,7 +47,7 @@ class NutritionTracker:
                 auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline', include_granted_scopes='true')
                 st.markdown(f"[Haz clic aquí para autorizar]({auth_url})")
 
-                code = st.experimental_get_query_params().get('code')
+                code = st.query_params().get('code')
                 if code:
                     try:
                         if isinstance(code, list):
@@ -291,5 +291,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
