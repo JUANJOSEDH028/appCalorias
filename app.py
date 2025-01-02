@@ -49,10 +49,14 @@ class NutritionTracker:
 
                
 
-                code = st.query_params.get('code')
-                if code and isinstance(code, list) and len(code) > 0:
+               code = st.query_params.get('code')
+
+                if code:
                     try:
-                        flow.fetch_token(code=code[0])
+                        # Verificar si el código es válido antes de usarlo
+                        if isinstance(code, list):
+                        code = code[0]
+                        flow.fetch_token(code=code)
                         st.session_state['token'] = flow.credentials.to_json()
                         st.session_state['is_authenticated'] = True
                         st.success("¡Autorización exitosa!")
@@ -60,10 +64,7 @@ class NutritionTracker:
                     except Exception as e:
                         st.error(f"Error al procesar el código de autorización: {str(e)}")
                 else:
-                        st.error("No se recibió un código de autorización válido.")
-
-                        st.write(f"Código de autorización recibido: {code}")
-                        st.write(f"Tipo de dato del código: {type(code)}")
+                    st.error("No se recibió un código de autorización válido.")
 
 
                 if code:
