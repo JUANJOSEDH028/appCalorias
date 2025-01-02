@@ -13,8 +13,8 @@ SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
 @st.cache_data
 def load_food_data():
-    """Carga el dataset de alimentos desde una URL."""
-    file_path = "https://raw.githubusercontent.com/JUANJOSEDH028/appCalorias/main/Filtered_Food_Data.csv"
+    """Carga el dataset de alimentos desde un archivo local."""
+    file_path = "/mnt/data/Filtered_Food_Data.csv"  # Ruta al nuevo archivo
     return pd.read_csv(file_path)
 
 class NutritionTracker:
@@ -47,7 +47,7 @@ class NutritionTracker:
                 auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline', include_granted_scopes='true')
                 st.markdown(f"[Haz clic aquí para autorizar]({auth_url})")
 
-                code = st.query_params.get('code')  # Usar solo st.query_params
+                code = st.query_params.get('code')
                 if code:
                     try:
                         if isinstance(code, list):
@@ -118,24 +118,6 @@ class NutritionTracker:
                 st.error("No se han cargado los datos de alimentos")
                 return False
 
-            # Recuperar archivo existente si st.session_state['historial'] está vacío
-            filename = f"historial_consumo_{usuario}_actual.csv"
-            if 'historial' not in st.session_state or st.session_state.historial.empty:
-                service = self.get_drive_service(usuario)
-                if service:
-                    results = service.files().list(
-                        q=f"name='{filename}' and trashed=false",
-                        fields="files(id, name)"
-                    ).execute()
-                    files = results.get('files', [])
-                    if files:
-                        file_id = files[0]['id']
-                        request = service.files().get_media(fileId=file_id)
-                        with open(filename, "wb") as f:
-                            f.write(request.execute())
-                        st.session_state.historial = pd.read_csv(filename)
-
-            # Registrar nuevo alimento
             alimento = self.data[self.data["name"] == alimento_nombre].iloc[0]
             valores = alimento[["Calories", "Fat (g)", "Protein (g)", "Carbohydrate (g)"]] * (cantidad / 100)
 
@@ -157,14 +139,12 @@ class NutritionTracker:
                     ignore_index=True
                 )
 
-            # Backup automático en Drive
-            self.upload_to_drive(
+            filename = f"historial_consumo_{usuario}.csv"
+            return self.upload_to_drive(
                 usuario,
                 st.session_state.historial.to_csv(index=False),
                 filename
             )
-
-            return True
 
         except Exception as e:
             st.error(f"Error al registrar alimento: {str(e)}")
@@ -178,33 +158,8 @@ class NutritionTracker:
             ].sum()
         return None
 
-def calculate_requirements(gender, age, weight, target_weight, goal, burned_calories):
-    """Calcula los requerimientos diarios de calorías y proteínas."""
-    if gender == 'Hombre':
-        bmr = 10 * weight + 6.25 * 170 - 5 * age + 5  # Altura promedio de 170 cm
-    else:
-        bmr = 10 * weight + 6.25 * 160 - 5 * age - 161  # Altura promedio de 160 cm
-
-    if goal == 'Déficit calórico':
-        calories = bmr - 500 + burned_calories
-    elif goal == 'Superávit calórico':
-        calories = bmr + 500 + burned_calories
-    else:
-        calories = bmr + burned_calories
-
-    protein = weight * 1.6 if weight > target_weight else target_weight * 1.6
-    return calories, protein
-
-def calculate_days_to_goal(current_weight, target_weight, daily_caloric_deficit):
-    """Calcula los días necesarios para alcanzar el peso ideal."""
-    if daily_caloric_deficit <= 0:
-        return float('inf')  # No se perderá peso sin déficit calórico
-    calories_per_kg = 7700  # Calorías aproximadas en 1 kg de grasa
-    total_calories_to_burn = abs(target_weight - current_weight) * calories_per_kg
-    return total_calories_to_burn / daily_caloric_deficit
-
 def main():
-    st.title("📊 Seguimiento Nutricional")
+    st.title("\ud83d\udcca Seguimiento Nutricional")
 
     if 'tracker' not in st.session_state:
         st.session_state.tracker = NutritionTracker()
@@ -212,50 +167,40 @@ def main():
     if 'is_authenticated' not in st.session_state:
         st.session_state['is_authenticated'] = False
 
-    # Preguntas iniciales
-    st.sidebar.header("👤 Datos Personales")
-    gender = st.sidebar.selectbox("Género:", ["Hombre", "Mujer"])
-    age = st.sidebar.number_input("Edad (años):", min_value=10, max_value=100, step=1)
-    weight = st.sidebar.number_input("Peso actual (kg):", min_value=30.0, max_value=300.0, step=0.1)
-    target_weight = st.sidebar.number_input("Peso ideal (kg):", min_value=30.0, max_value=300.0, step=0.1)
-    goal = st.sidebar.selectbox("Objetivo:", ["Mantenimiento", "Déficit calórico", "Superávit calórico"])
-    burned_calories = st.sidebar.number_input("Calorías quemadas hoy (kcal):", min_value=0, step=10)
+    st.sidebar.header("\ud83d\udc64 Usuario")
+    usuario = st.sidebar.text_input("Email:", key="user_email")
 
-    calories, protein = calculate_requirements(gender, age, weight, target_weight, goal, burned_calories)
+    if not usuario:
+        st.warning("\u26a0\ufe0f Por favor, ingresa tu email para comenzar.")
+        return
 
-    st.sidebar.markdown(f"### Requerimientos diarios:")
-    st.sidebar.markdown(f"- Calorías: {calories:.0f} kcal")
-    st.sidebar.markdown(f"- Proteínas: {protein:.1f} g")
+    if not st.session_state['is_authenticated']:
+        st.warning("\u26a0\ufe0f Por favor, autentícate con Google para continuar.")
+        st.session_state.tracker.get_drive_service(usuario)
+        return
 
-    # Calcular días para alcanzar el peso ideal
-    if st.sidebar.button("Calcular tiempo para alcanzar el peso ideal"):
-        daily_deficit = calories - burned_calories
-        days_to_goal = calculate_days_to_goal(weight, target_weight, daily_deficit)
-        st.sidebar.markdown(f"### Tiempo estimado para alcanzar el peso ideal: {days_to_goal:.1f} días")
-
-    # Menú principal
-    st.sidebar.header("🎯 Metas Diarias")
+    st.sidebar.header("\ud83c\udfaf Metas Diarias")
     calorias_meta = st.sidebar.number_input(
         "Meta de calorías (kcal):",
         min_value=1000,
         max_value=5000,
-        value=max(1000, int(calories))  # Ajustar para que no sea menor a 1000
+        value=2000
     )
 
     proteinas_meta = st.sidebar.number_input(
         "Meta de proteínas (g):",
         min_value=30,
         max_value=300,
-        value=int(protein)
+        value=150
     )
 
     menu = st.sidebar.selectbox(
-        "📋 Menú:",
-        ["Registrar Alimentos", "Resumen Diario", "Cerrar Día"]
+        "\ud83d\udccb Menú:",
+        ["Registrar Alimentos", "Resumen Diario"]
     )
 
     if menu == "Registrar Alimentos":
-        st.header("🍽️ Registro de Alimentos")
+        st.header("\ud83c\udf7d\ufe0f Registro de Alimentos")
 
         col1, col2 = st.columns(2)
         with col1:
@@ -266,12 +211,12 @@ def main():
         with col2:
             cantidad = st.number_input("Cantidad (g):", min_value=1.0, step=1.0)
 
-        if st.button("📝 Registrar"):
-            if st.session_state.tracker.register_food("usuario", alimento, cantidad):
-                st.success("✅ Alimento registrado correctamente")
+        if st.button("\ud83d\udd8d\ufe0f Registrar"):
+            if st.session_state.tracker.register_food(usuario, alimento, cantidad):
+                st.success("\u2705 Alimento registrado correctamente")
 
     elif menu == "Resumen Diario":
-        st.header("📈 Resumen del Día")
+        st.header("\ud83d\udcca Resumen del Día")
         resumen = st.session_state.tracker.get_daily_summary()
 
         if resumen is not None:
@@ -293,12 +238,7 @@ def main():
 
             st.table(resumen)
         else:
-            st.info("📝 No hay registros para hoy")
-
-    elif menu == "Cerrar Día":
-        st.header("🔒 Cerrar Día")
-        if st.button("🔒 Cerrar Día"):
-            close_day("usuario")
+            st.info("\ud83d\udd8d\ufe0f No hay registros para hoy")
 
 if __name__ == "__main__":
     main()
