@@ -56,7 +56,6 @@ class NutritionTracker:
                         st.session_state['token'] = flow.credentials.to_json()
                         st.session_state['is_authenticated'] = True
                         st.success("¡Autorización exitosa!")
-                        st.session_state['is_authenticated'] = True
                     except Exception as e:
                         st.error(f"Error al procesar el código de autorización: {str(e)}")
                 else:
@@ -159,8 +158,30 @@ class NutritionTracker:
             ].sum()
         return None
 
+def close_day(usuario):
+    """Cierra el día y prepara un nuevo archivo para el siguiente."""
+    if 'historial' in st.session_state and not st.session_state.historial.empty:
+        try:
+            # Nombre del archivo con la fecha actual
+            fecha_actual = datetime.now().strftime("%Y-%m-%d")
+            filename = f"historial_consumo_{usuario}_{fecha_actual}.csv"
+
+            # Guardar el archivo actual en Drive
+            tracker = st.session_state.tracker
+            if tracker.upload_to_drive(usuario, st.session_state.historial.to_csv(index=False), filename):
+                st.success(f"✅ Archivo '{filename}' guardado exitosamente en Google Drive.")
+
+            # Limpiar el historial para un nuevo día
+            st.session_state.historial = pd.DataFrame()
+            st.info("\ud83d\udcc6 El día ha sido cerrado. Puedes comenzar un nuevo día.")
+
+        except Exception as e:
+            st.error(f"\u26a0\ufe0f Error al cerrar el día: {str(e)}")
+    else:
+        st.warning("\u26a0\ufe0f No hay datos en el historial para guardar.")
+
 def main():
-    st.title("📊 Seguimiento Nutricional")
+    st.title("\ud83d\udcca Seguimiento Nutricional")
 
     if 'tracker' not in st.session_state:
         st.session_state.tracker = NutritionTracker()
@@ -168,19 +189,19 @@ def main():
     if 'is_authenticated' not in st.session_state:
         st.session_state['is_authenticated'] = False
 
-    st.sidebar.header("👤 Usuario")
+    st.sidebar.header("\ud83d\udc64 Usuario")
     usuario = st.sidebar.text_input("Email:", key="user_email")
 
     if not usuario:
-        st.warning("⚠️ Por favor, ingresa tu email para comenzar.")
+        st.warning("\u26a0\ufe0f Por favor, ingresa tu email para comenzar.")
         return
 
     if not st.session_state['is_authenticated']:
-        st.warning("⚠️ Por favor, autentícate con Google para continuar.")
+        st.warning("\u26a0\ufe0f Por favor, autentícate con Google para continuar.")
         st.session_state.tracker.get_drive_service(usuario)
         return
 
-    st.sidebar.header("🎯 Metas Diarias")
+    st.sidebar.header("\ud83c\udfaf Metas Diarias")
     calorias_meta = st.sidebar.number_input(
         "Meta de calorías (kcal):",
         min_value=1000,
@@ -196,12 +217,12 @@ def main():
     )
 
     menu = st.sidebar.selectbox(
-        "📋 Menú:",
-        ["Registrar Alimentos", "Resumen Diario"]
+        "\ud83d\uddcb Menú:",
+        ["Registrar Alimentos", "Resumen Diario", "Cerrar Día"]
     )
 
     if menu == "Registrar Alimentos":
-        st.header("🍽️ Registro de Alimentos")
+        st.header("\ud83c\udf7d\ufe0f Registro de Alimentos")
 
         col1, col2 = st.columns(2)
         with col1:
@@ -212,12 +233,12 @@ def main():
         with col2:
             cantidad = st.number_input("Cantidad (g):", min_value=1.0, step=1.0)
 
-        if st.button("📝 Registrar"):
+        if st.button("\ud83d\udd8b\ufe0f Registrar"):
             if st.session_state.tracker.register_food(usuario, alimento, cantidad):
-                st.success("✅ Alimento registrado correctamente")
+                st.success("\u2705 Alimento registrado correctamente")
 
     elif menu == "Resumen Diario":
-        st.header("📈 Resumen del Día")
+        st.header("\ud83d\udcca Resumen del Día")
         resumen = st.session_state.tracker.get_daily_summary()
 
         if resumen is not None:
@@ -239,40 +260,13 @@ def main():
 
             st.table(resumen)
         else:
-            st.info("📝 No hay registros para hoy")
+            st.info("\ud83d\udd8d No hay registros para hoy")
 
-def close_day(usuario):
-    """Cierra el día y prepara un nuevo archivo para el siguiente."""
-    if 'historial' in st.session_state and not st.session_state.historial.empty:
-        try:
-            # Nombre del archivo con la fecha actual
-            fecha_actual = datetime.now().strftime("%Y-%m-%d")
-            filename = f"historial_consumo_{usuario}_{fecha_actual}.csv"
-
-            # Guardar el archivo actual en Drive
-            tracker = st.session_state.tracker
-            if tracker.upload_to_drive(usuario, st.session_state.historial.to_csv(index=False), filename):
-                st.success(f"✅ Archivo '{filename}' guardado exitosamente en Google Drive.")
-
-            # Limpiar el historial para un nuevo día
-            st.session_state.historial = pd.DataFrame()
-            st.info("📆 El día ha sido cerrado. Puedes comenzar un nuevo día.")
-
-        except Exception as e:
-            st.error(f"⚠️ Error al cerrar el día: {str(e)}")
-    else:
-        st.warning("⚠️ No hay datos en el historial para guardar.")
-
-# Incorporar la opción de "Cerrar Día" en el menú
-menu = st.sidebar.selectbox(
-    "📋 Menú:",
-    ["Registrar Alimentos", "Resumen Diario", "Cerrar Día"]
-)
-
-if menu == "Cerrar Día":
-    if st.button("🔒 Cerrar Día"):
-        close_day(usuario)
-
+    elif menu == "Cerrar Día":
+        st.header("\ud83d\udd12 Cerrar Día")
+        if st.button("\ud83d\udd12 Cerrar Día"):
+            close_day(usuario)
 
 if __name__ == "__main__":
     main()
+
