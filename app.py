@@ -14,13 +14,13 @@ SCOPES = ['https://www.googleapis.com/auth/drive.file']
 class NutritionTracker:
     def __init__(self):
         """Inicializa el tracker con los datos de alimentos."""
-        self.data = self.load_food_data()
+        self.data = self.load_food_data("https://raw.githubusercontent.com/JUANJOSEDH028/calorias/main/alimentos_limpios.csv")
 
     @st.cache_data
-    def load_food_data(_file_path="https://raw.githubusercontent.com/JUANJOSEDH028/calorias/main/alimentos_limpios.csv"):
+    def load_food_data(file_path):
         """Carga el dataset de alimentos."""
         try:
-            data = pd.read_csv(_file_path)
+            data = pd.read_csv(file_path)
             return data
         except Exception as e:
             st.error(f"Error al cargar datos: {str(e)}")
@@ -237,5 +237,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
