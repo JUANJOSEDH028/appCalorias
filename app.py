@@ -47,7 +47,7 @@ class NutritionTracker:
                 auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline', include_granted_scopes='true')
                 st.markdown(f"[Haz clic aquí para autorizar]({auth_url})")
 
-                code = st.query_params.get('code')
+                code = st.query_params.get('code')  # Usar solo st.query_params
                 if code:
                     try:
                         if isinstance(code, list):
@@ -55,7 +55,6 @@ class NutritionTracker:
                         flow.fetch_token(code=code)
                         st.session_state['token'] = flow.credentials.to_json()
                         st.session_state['is_authenticated'] = True
-                        st.set_query_params()  # Limpia los parámetros de la URL
                         st.success("¡Autorización exitosa!")
                     except Exception as e:
                         st.error(f"Error al procesar el código de autorización: {str(e)}")
@@ -179,7 +178,7 @@ class NutritionTracker:
             ].sum()
         return None
 
-def calculate_requirements(gender, age, weight, target_weight, goal):
+def calculate_requirements(gender, age, weight, target_weight, goal, burned_calories):
     """Calcula los requerimientos diarios de calorías y proteínas."""
     if gender == 'Hombre':
         bmr = 10 * weight + 6.25 * 170 - 5 * age + 5  # Altura promedio de 170 cm
@@ -187,11 +186,11 @@ def calculate_requirements(gender, age, weight, target_weight, goal):
         bmr = 10 * weight + 6.25 * 160 - 5 * age - 161  # Altura promedio de 160 cm
 
     if goal == 'Déficit calórico':
-        calories = bmr - 500
+        calories = bmr - 500 + burned_calories
     elif goal == 'Superávit calórico':
-        calories = bmr + 500
+        calories = bmr + 500 + burned_calories
     else:
-        calories = bmr
+        calories = bmr + burned_calories
 
     protein = weight * 1.6 if weight > target_weight else target_weight * 1.6
     return calories, protein
@@ -220,8 +219,9 @@ def main():
     weight = st.sidebar.number_input("Peso actual (kg):", min_value=30.0, max_value=300.0, step=0.1)
     target_weight = st.sidebar.number_input("Peso ideal (kg):", min_value=30.0, max_value=300.0, step=0.1)
     goal = st.sidebar.selectbox("Objetivo:", ["Mantenimiento", "Déficit calórico", "Superávit calórico"])
+    burned_calories = st.sidebar.number_input("Calorías quemadas hoy (kcal):", min_value=0, step=10)
 
-    calories, protein = calculate_requirements(gender, age, weight, target_weight, goal)
+    calories, protein = calculate_requirements(gender, age, weight, target_weight, goal, burned_calories)
 
     st.sidebar.markdown(f"### Requerimientos diarios:")
     st.sidebar.markdown(f"- Calorías: {calories:.0f} kcal")
@@ -229,7 +229,6 @@ def main():
 
     # Calcular días para alcanzar el peso ideal
     if st.sidebar.button("Calcular tiempo para alcanzar el peso ideal"):
-        burned_calories = st.number_input("Calorías quemadas hoy (kcal):", min_value=0, step=10)
         daily_deficit = calories - burned_calories
         days_to_goal = calculate_days_to_goal(weight, target_weight, daily_deficit)
         st.sidebar.markdown(f"### Tiempo estimado para alcanzar el peso ideal: {days_to_goal:.1f} días")
@@ -240,7 +239,7 @@ def main():
         "Meta de calorías (kcal):",
         min_value=1000,
         max_value=5000,
-        value=int(calories)
+        value=max(1000, int(calories))  # Ajustar para que no sea menor a 1000
     )
 
     proteinas_meta = st.sidebar.number_input(
@@ -303,4 +302,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
