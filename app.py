@@ -13,8 +13,8 @@ SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
 @st.cache_data
 def load_food_data():
-    """Carga el dataset de alimentos desde una URL."""
-    file_path = "https://raw.githubusercontent.com/JUANJOSEDH028/appCalorias/main/Filtered_Food_Data.csv"
+    """Carga el dataset de alimentos desde un archivo local."""
+    file_path = "/mnt/data/Filtered_Food_Data.csv"  # Ruta al nuevo archivo
     return pd.read_csv(file_path)
 
 class NutritionTracker:
@@ -118,17 +118,16 @@ class NutritionTracker:
                 st.error("No se han cargado los datos de alimentos")
                 return False
 
-            alimento = self.data[self.data["name"] == alimento_nombre].iloc[0]
-            valores = alimento[["Calories", "Fat (g)", "Protein (g)", "Carbohydrate (g)"]] * (cantidad / 100)
+            alimento = self.data[self.data["food"] == alimento_nombre].iloc[0]
+            valores = alimento[["Carbohydrates", "Fat", "Protein"]] * (cantidad / 100)
 
             nuevo_registro = pd.DataFrame({
                 'Fecha y Hora': [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
                 'Alimento': [alimento["food"]],
                 'Cantidad (g)': [cantidad],
-                'Calorías': [valores["Calories"]],
-                'Grasas (g)': [valores["Fat (g)"]],
-                'Proteínas (g)': [valores["Protein (g)"]],
-                'Carbohidratos (g)': [valores["Carbohydrate (g)"]]
+                'Carbohidratos (g)': [valores["Carbohydrates"]],
+                'Grasas (g)': [valores["Fat"]],
+                'Proteínas (g)': [valores["Protein"]]
             })
 
             if 'historial' not in st.session_state:
@@ -154,7 +153,7 @@ class NutritionTracker:
         """Obtiene el resumen diario de nutrición."""
         if 'historial' in st.session_state and not st.session_state.historial.empty:
             return st.session_state.historial[
-                ["Calorías", "Grasas (g)", "Proteínas (g)", "Carbohidratos (g)"]
+                ["Carbohidratos (g)", "Grasas (g)", "Proteínas (g)"]
             ].sum()
         return None
 
@@ -180,11 +179,18 @@ def main():
         return
 
     st.sidebar.header("🎯 Metas Diarias")
-    calorias_meta = st.sidebar.number_input(
-        "Meta de calorías (kcal):",
-        min_value=1000,
-        max_value=5000,
-        value=2000
+    carbohidratos_meta = st.sidebar.number_input(
+        "Meta de carbohidratos (g):",
+        min_value=50,
+        max_value=500,
+        value=300
+    )
+
+    grasas_meta = st.sidebar.number_input(
+        "Meta de grasas (g):",
+        min_value=20,
+        max_value=200,
+        value=70
     )
 
     proteinas_meta = st.sidebar.number_input(
@@ -206,7 +212,7 @@ def main():
         with col1:
             alimento = st.selectbox(
                 "Alimento:",
-                st.session_state.tracker.data["name"] if not st.session_state.tracker.data.empty else []
+                st.session_state.tracker.data["food"] if not st.session_state.tracker.data.empty else []
             )
         with col2:
             cantidad = st.number_input("Cantidad (g):", min_value=1.0, step=1.0)
@@ -220,16 +226,23 @@ def main():
         resumen = st.session_state.tracker.get_daily_summary()
 
         if resumen is not None:
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
 
             with col1:
                 st.metric(
-                    "Calorías",
-                    f"{resumen['Calorías']:.1f} kcal",
-                    f"{resumen['Calorías'] - calorias_meta:.1f} kcal"
+                    "Carbohidratos",
+                    f"{resumen['Carbohidratos (g)']:.1f} g",
+                    f"{resumen['Carbohidratos (g)'] - carbohidratos_meta:.1f} g"
                 )
 
             with col2:
+                st.metric(
+                    "Grasas",
+                    f"{resumen['Grasas (g)']:.1f} g",
+                    f"{resumen['Grasas (g)'] - grasas_meta:.1f} g"
+                )
+
+            with col3:
                 st.metric(
                     "Proteínas",
                     f"{resumen['Proteínas (g)']:.1f} g",
@@ -242,3 +255,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
