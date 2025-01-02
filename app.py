@@ -56,6 +56,7 @@ class NutritionTracker:
                         st.session_state['token'] = flow.credentials.to_json()
                         st.session_state['is_authenticated'] = True
                         st.success("¡Autorización exitosa!")
+                        st.session_state['is_authenticated'] = True
                     except Exception as e:
                         st.error(f"Error al procesar el código de autorización: {str(e)}")
                 else:
