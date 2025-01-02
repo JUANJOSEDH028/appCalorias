@@ -14,13 +14,8 @@ SCOPES = ['https://www.googleapis.com/auth/drive.file']
 @st.cache_data
 def load_food_data():
     """Carga el dataset de alimentos desde una URL."""
-    try:
-        file_path = "https://raw.githubusercontent.com/JUANJOSEDH028/appCalorias/main/alimentos_limpios.csv"
-        data = pd.read_csv(file_path)
-        return data
-    except Exception as e:
-        st.error(f"Error al cargar datos: {str(e)}")
-        return pd.DataFrame()
+    file_path = "https://raw.githubusercontent.com/JUANJOSEDH028/appCalorias/main/alimentos_limpios.csv"
+    return pd.read_csv(file_path)
 
 class NutritionTracker:
     def __init__(self):
@@ -30,8 +25,7 @@ class NutritionTracker:
     def get_drive_service(self, usuario):
         """Configura y retorna el servicio de Google Drive."""
         try:
-            if 'token' not in st.session_state:
-                # Configurar credenciales desde secrets
+            if not st.session_state.get('is_authenticated', False):
                 client_config = {
                     'web': {
                         'client_id': st.secrets["client_secrets"]["web"]["client_id"],
@@ -40,7 +34,7 @@ class NutritionTracker:
                         'token_uri': st.secrets["client_secrets"]["web"]["token_uri"],
                         'auth_provider_x509_cert_url': st.secrets["client_secrets"]["web"]["auth_provider_x509_cert_url"],
                         'client_secret': st.secrets["client_secrets"]["web"]["client_secret"],
-                        'redirect_uris': [st.secrets["client_secrets"]["web"]["redirect_uris"][-1]]  # URL del despliegue
+                        'redirect_uris': [st.secrets["client_secrets"]["web"]["redirect_uris"][-1]]
                     }
                 }
 
@@ -50,20 +44,18 @@ class NutritionTracker:
                 )
                 flow.redirect_uri = st.secrets["client_secrets"]["web"]["redirect_uris"][-1]
 
-                # Generar URL de autorización
                 auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline', include_granted_scopes='true')
                 st.markdown(f"[Haz clic aquí para autorizar]({auth_url})")
 
-                # Campo para el código de autorización
                 code = st.text_input("Ingresa el código de autorización:")
                 if code:
                     flow.fetch_token(code=code)
                     st.session_state['token'] = flow.credentials.to_json()
+                    st.session_state['is_authenticated'] = True
                     st.success("¡Autorización exitosa!")
                     st.experimental_rerun()
                 return None
 
-            # Usar credenciales existentes
             creds = Credentials.from_authorized_user_info(
                 json.loads(st.session_state['token']),
                 SCOPES
@@ -81,14 +73,12 @@ class NutritionTracker:
             if not service:
                 return False
 
-            # Crear archivo temporal
             with open(filename, 'w') as f:
                 f.write(content)
 
             file_metadata = {'name': filename}
             media = MediaFileUpload(filename, resumable=True)
 
-            # Buscar archivo existente
             results = service.files().list(
                 q=f"name='{filename}' and trashed=false",
                 fields="files(id)"
@@ -96,14 +86,12 @@ class NutritionTracker:
             existing_files = results.get('files', [])
 
             if existing_files:
-                # Actualizar archivo
                 file = service.files().update(
                     fileId=existing_files[0]['id'],
                     body=file_metadata,
                     media_body=media
                 ).execute()
             else:
-                # Crear nuevo archivo
                 file = service.files().create(
                     body=file_metadata,
                     media_body=media,
@@ -137,7 +125,6 @@ class NutritionTracker:
                 'Carbohidratos (g)': [valores["Carbohydrate (g)"]]
             })
 
-            # Actualizar historial en session_state
             if 'historial' not in st.session_state:
                 st.session_state.historial = nuevo_registro
             else:
@@ -146,7 +133,6 @@ class NutritionTracker:
                     ignore_index=True
                 )
 
-            # Subir a Drive
             filename = f"historial_consumo_{usuario}.csv"
             return self.upload_to_drive(
                 usuario,
@@ -169,11 +155,12 @@ class NutritionTracker:
 def main():
     st.title("📊 Seguimiento Nutricional")
 
-    # Inicializar tracker
     if 'tracker' not in st.session_state:
         st.session_state.tracker = NutritionTracker()
 
-    # Autenticación
+    if 'is_authenticated' not in st.session_state:
+        st.session_state['is_authenticated'] = False
+
     st.sidebar.header("👤 Usuario")
     usuario = st.sidebar.text_input("Email:", key="user_email")
 
@@ -181,7 +168,11 @@ def main():
         st.warning("⚠️ Por favor, ingresa tu email para comenzar.")
         return
 
-    # Metas diarias
+    if not st.session_state['is_authenticated']:
+        st.warning("⚠️ Por favor, autentícate con Google para continuar.")
+        st.session_state.tracker.get_drive_service(usuario)
+        return
+
     st.sidebar.header("🎯 Metas Diarias")
     calorias_meta = st.sidebar.number_input(
         "Meta de calorías (kcal):",
@@ -197,7 +188,6 @@ def main():
         value=150
     )
 
-    # Menú principal
     menu = st.sidebar.selectbox(
         "📋 Menú:",
         ["Registrar Alimentos", "Resumen Diario"]
@@ -220,7 +210,7 @@ def main():
                 st.success("✅ Alimento registrado correctamente")
 
     elif menu == "Resumen Diario":
-        st.header("📊 Resumen del Día")
+        st.header("📈 Resumen del Día")
         resumen = st.session_state.tracker.get_daily_summary()
 
         if resumen is not None:
