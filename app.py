@@ -11,21 +11,21 @@ import json
 # Configuración de constantes
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
+@st.cache_data
+def load_food_data():
+    """Carga el dataset de alimentos desde una URL."""
+    try:
+        file_path = "https://raw.githubusercontent.com/JUANJOSEDH028/appCalorias/main/alimentos_limpios.csv"
+        data = pd.read_csv(file_path)
+        return data
+    except Exception as e:
+        st.error(f"Error al cargar datos: {str(e)}")
+        return pd.DataFrame()
+
 class NutritionTracker:
     def __init__(self):
         """Inicializa el tracker con los datos de alimentos."""
-        self.data = self.load_food_data()
-
-    @st.cache_data
-    def load_food_data():
-        """Carga el dataset de alimentos."""
-        try:
-            file_path = "https://raw.githubusercontent.com/JUANJOSEDH028/appCalorias/main/alimentos_limpios.csv"
-            data = pd.read_csv(file_path)
-            return data
-        except Exception as e:
-            st.error(f"Error al cargar datos: {str(e)}")
-            return pd.DataFrame()
+        self.data = load_food_data()
 
     def get_drive_service(self, usuario):
         """Configura y retorna el servicio de Google Drive."""
@@ -238,3 +238,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
