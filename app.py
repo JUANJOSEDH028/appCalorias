@@ -159,7 +159,7 @@ class NutritionTracker:
         return None
 
 def main():
-    st.title("\ud83d\udcca Seguimiento Nutricional")
+    st.title("📊 Seguimiento Nutricional")
 
     if 'tracker' not in st.session_state:
         st.session_state.tracker = NutritionTracker()
@@ -167,19 +167,19 @@ def main():
     if 'is_authenticated' not in st.session_state:
         st.session_state['is_authenticated'] = False
 
-    st.sidebar.header("\ud83d\udc64 Usuario")
+    st.sidebar.header("👤 Usuario")
     usuario = st.sidebar.text_input("Email:", key="user_email")
 
     if not usuario:
-        st.warning("\u26a0\ufe0f Por favor, ingresa tu email para comenzar.")
+        st.warning("⚠️ Por favor, ingresa tu email para comenzar.")
         return
 
     if not st.session_state['is_authenticated']:
-        st.warning("\u26a0\ufe0f Por favor, autentícate con Google para continuar.")
+        st.warning("⚠️ Por favor, autentícate con Google para continuar.")
         st.session_state.tracker.get_drive_service(usuario)
         return
 
-    st.sidebar.header("\ud83c\udfaf Metas Diarias")
+    st.sidebar.header("🎯 Metas Diarias")
     calorias_meta = st.sidebar.number_input(
         "Meta de calorías (kcal):",
         min_value=1000,
@@ -195,12 +195,12 @@ def main():
     )
 
     menu = st.sidebar.selectbox(
-        "\ud83d\udccb Menú:",
+        "📋 Menú:",
         ["Registrar Alimentos", "Resumen Diario"]
     )
 
     if menu == "Registrar Alimentos":
-        st.header("\ud83c\udf7d\ufe0f Registro de Alimentos")
+        st.header("🍽️ Registro de Alimentos")
 
         col1, col2 = st.columns(2)
         with col1:
@@ -211,12 +211,12 @@ def main():
         with col2:
             cantidad = st.number_input("Cantidad (g):", min_value=1.0, step=1.0)
 
-        if st.button("\ud83d\udd8d\ufe0f Registrar"):
+        if st.button("📝 Registrar"):
             if st.session_state.tracker.register_food(usuario, alimento, cantidad):
-                st.success("\u2705 Alimento registrado correctamente")
+                st.success("✅ Alimento registrado correctamente")
 
     elif menu == "Resumen Diario":
-        st.header("\ud83d\udcca Resumen del Día")
+        st.header("📈 Resumen del Día")
         resumen = st.session_state.tracker.get_daily_summary()
 
         if resumen is not None:
@@ -238,7 +238,7 @@ def main():
 
             st.table(resumen)
         else:
-            st.info("\ud83d\udd8d\ufe0f No hay registros para hoy")
+            st.info("📝 No hay registros para hoy")
 
 if __name__ == "__main__":
     main()
