@@ -23,55 +23,56 @@ class NutritionTracker:
         self.data = load_food_data()
 
     def get_drive_service(self, usuario):
-        """Configura y retorna el servicio de Google Drive."""
-        try:
-            if not st.session_state.get('is_authenticated', False):
-                client_config = {
-                    'web': {
-                        'client_id': st.secrets["client_secrets"]["web"]["client_id"],
-                        'project_id': st.secrets["client_secrets"]["web"]["project_id"],
-                        'auth_uri': st.secrets["client_secrets"]["web"]["auth_uri"],
-                        'token_uri': st.secrets["client_secrets"]["web"]["token_uri"],
-                        'auth_provider_x509_cert_url': st.secrets["client_secrets"]["web"]["auth_provider_x509_cert_url"],
-                        'client_secret': st.secrets["client_secrets"]["web"]["client_secret"],
-                        'redirect_uris': [st.secrets["client_secrets"]["web"]["redirect_uris"][-1]]
-                    }
+    """Configura y retorna el servicio de Google Drive."""
+    try:
+        if not st.session_state.get('is_authenticated', False):
+            client_config = {
+                'web': {
+                    'client_id': st.secrets["client_secrets"]["web"]["client_id"],
+                    'project_id': st.secrets["client_secrets"]["web"]["project_id"],
+                    'auth_uri': st.secrets["client_secrets"]["web"]["auth_uri"],
+                    'token_uri': st.secrets["client_secrets"]["web"]["token_uri"],
+                    'auth_provider_x509_cert_url': st.secrets["client_secrets"]["web"]["auth_provider_x509_cert_url"],
+                    'client_secret': st.secrets["client_secrets"]["web"]["client_secret"],
+                    'redirect_uris': [st.secrets["client_secrets"]["web"]["redirect_uris"][-1]]
                 }
+            }
 
-                flow = Flow.from_client_config(
-                    client_config,
-                    SCOPES
-                )
-                flow.redirect_uri = st.secrets["client_secrets"]["web"]["redirect_uris"][-1]
-
-                auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline', include_granted_scopes='true')
-                st.markdown(f"[Haz clic aquí para autorizar]({auth_url})")
-
-                code = st.query_params.get('code')
-                if code:
-                    try:
-                        if isinstance(code, list):
-                            code = code[0]
-                        flow.fetch_token(code=code)
-                        st.session_state['token'] = flow.credentials.to_json()
-                        st.session_state['is_authenticated'] = True
-                        st.success("¡Autorización exitosa!")
-                        st.experimental_rerun()
-                    except Exception as e:
-                        st.error(f"Error al procesar el código de autorización: {str(e)}")
-                else:
-                    st.error("No se recibió un código de autorización válido.")
-                return None
-
-            creds = Credentials.from_authorized_user_info(
-                json.loads(st.session_state['token']),
+            flow = Flow.from_client_config(
+                client_config,
                 SCOPES
             )
-            return build('drive', 'v3', credentials=creds)
+            flow.redirect_uri = st.secrets["client_secrets"]["web"]["redirect_uris"][-1]
 
-        except Exception as e:
-            st.error(f"Error en la autenticación: {str(e)}")
+            auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline', include_granted_scopes='true')
+            st.markdown(f"[Haz clic aquí para autorizar]({auth_url})")
+
+            code = st.experimental_get_query_params().get('code')
+            if code:
+                try:
+                    if isinstance(code, list):
+                        code = code[0]
+                    flow.fetch_token(code=code)
+                    st.session_state['token'] = flow.credentials.to_json()
+                    st.session_state['is_authenticated'] = True
+                    st.experimental_set_query_params()  # Limpia los parámetros de la URL
+                    st.success("¡Autorización exitosa!")
+                except Exception as e:
+                    st.error(f"Error al procesar el código de autorización: {str(e)}")
+            else:
+                st.error("No se recibió un código de autorización válido.")
             return None
+
+        creds = Credentials.from_authorized_user_info(
+            json.loads(st.session_state['token']),
+            SCOPES
+        )
+        return build('drive', 'v3', credentials=creds)
+
+    except Exception as e:
+        st.error(f"Error en la autenticación: {str(e)}")
+        return None
+
 
     def upload_to_drive(self, usuario, content, filename):
         """Sube contenido a Google Drive."""
