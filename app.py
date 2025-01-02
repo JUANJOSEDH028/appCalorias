@@ -55,7 +55,7 @@ class NutritionTracker:
                         flow.fetch_token(code=code)
                         st.session_state['token'] = flow.credentials.to_json()
                         st.session_state['is_authenticated'] = True
-                        st.experimental_set_query_params()  # Limpia los parámetros de la URL
+                        st.set_query_params()  # Limpia los parámetros de la URL
                         st.success("¡Autorización exitosa!")
                     except Exception as e:
                         st.error(f"Error al procesar el código de autorización: {str(e)}")
@@ -303,3 +303,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
