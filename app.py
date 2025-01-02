@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import kagglehub
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
@@ -13,9 +14,10 @@ SCOPES = ['https://www.googleapis.com/auth/drive.file']
 
 @st.cache_data
 def load_food_data():
-    """Carga el dataset de alimentos desde una URL."""
-    file_path = "https://raw.githubusercontent.com/JUANJOSEDH028/appCalorias/main/alimentos_limpios.csv"
-    return pd.read_csv(file_path)
+    """Carga el dataset de alimentos desde Kaggle."""
+    path = kagglehub.dataset_download("utsavdey1410/food-nutrition-dataset")
+    dataset_file = os.path.join(path, "nutrition_dataset.csv")  # Ajustar el nombre del archivo según corresponda
+    return pd.read_csv(dataset_file)
 
 class NutritionTracker:
     def __init__(self):
