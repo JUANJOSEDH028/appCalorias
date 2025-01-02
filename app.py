@@ -20,7 +20,7 @@ class NutritionTracker:
     def load_food_data(self):
         """Carga el dataset de alimentos."""
         try:
-            url = "https://raw.githubusercontent.com/JUANJOSEDH028/calorias/main/alimentos_limpios.csv"
+            url = "https://raw.githubusercontent.com/JUANJOSEDH028/appCalorias/main/alimentos_limpios.csv"
             self.data = pd.read_csv(url)
         except Exception as e:
             st.error(f"Error al cargar datos: {str(e)}")
