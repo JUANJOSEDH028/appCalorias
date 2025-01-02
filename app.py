@@ -56,7 +56,6 @@ class NutritionTracker:
                         st.session_state['token'] = flow.credentials.to_json()
                         st.session_state['is_authenticated'] = True
                         st.success("¡Autorización exitosa!")
-                        st.session_state['is_authenticated'] = True
                     except Exception as e:
                         st.error(f"Error al procesar el código de autorización: {str(e)}")
                 else:
@@ -119,6 +118,24 @@ class NutritionTracker:
                 st.error("No se han cargado los datos de alimentos")
                 return False
 
+            # Recuperar archivo existente si st.session_state['historial'] está vacío
+            filename = f"historial_consumo_{usuario}_actual.csv"
+            if 'historial' not in st.session_state or st.session_state.historial.empty:
+                service = self.get_drive_service(usuario)
+                if service:
+                    results = service.files().list(
+                        q=f"name='{filename}' and trashed=false",
+                        fields="files(id, name)"
+                    ).execute()
+                    files = results.get('files', [])
+                    if files:
+                        file_id = files[0]['id']
+                        request = service.files().get_media(fileId=file_id)
+                        with open(filename, "wb") as f:
+                            f.write(request.execute())
+                        st.session_state.historial = pd.read_csv(filename)
+
+            # Registrar nuevo alimento
             alimento = self.data[self.data["name"] == alimento_nombre].iloc[0]
             valores = alimento[["Calories", "Fat (g)", "Protein (g)", "Carbohydrate (g)"]] * (cantidad / 100)
 
@@ -141,7 +158,6 @@ class NutritionTracker:
                 )
 
             # Backup automático en Drive
-            filename = f"historial_consumo_{usuario}_actual.csv"
             self.upload_to_drive(
                 usuario,
                 st.session_state.historial.to_csv(index=False),
@@ -273,5 +289,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
