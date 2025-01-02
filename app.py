@@ -241,5 +241,38 @@ def main():
         else:
             st.info("📝 No hay registros para hoy")
 
+def close_day(usuario):
+    """Cierra el día y prepara un nuevo archivo para el siguiente."""
+    if 'historial' in st.session_state and not st.session_state.historial.empty:
+        try:
+            # Nombre del archivo con la fecha actual
+            fecha_actual = datetime.now().strftime("%Y-%m-%d")
+            filename = f"historial_consumo_{usuario}_{fecha_actual}.csv"
+
+            # Guardar el archivo actual en Drive
+            tracker = st.session_state.tracker
+            if tracker.upload_to_drive(usuario, st.session_state.historial.to_csv(index=False), filename):
+                st.success(f"✅ Archivo '{filename}' guardado exitosamente en Google Drive.")
+
+            # Limpiar el historial para un nuevo día
+            st.session_state.historial = pd.DataFrame()
+            st.info("📆 El día ha sido cerrado. Puedes comenzar un nuevo día.")
+
+        except Exception as e:
+            st.error(f"⚠️ Error al cerrar el día: {str(e)}")
+    else:
+        st.warning("⚠️ No hay datos en el historial para guardar.")
+
+# Incorporar la opción de "Cerrar Día" en el menú
+menu = st.sidebar.selectbox(
+    "📋 Menú:",
+    ["Registrar Alimentos", "Resumen Diario", "Cerrar Día"]
+)
+
+if menu == "Cerrar Día":
+    if st.button("🔒 Cerrar Día"):
+        close_day(usuario)
+
+
 if __name__ == "__main__":
     main()
