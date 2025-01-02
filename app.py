@@ -47,7 +47,11 @@ class NutritionTracker:
                 auth_url, _ = flow.authorization_url(prompt='consent', access_type='offline', include_granted_scopes='true')
                 st.markdown(f"[Haz clic aquí para autorizar]({auth_url})")
 
+               
+
                 code = st.query_params.get('code')
+                st.write(f"Código de autorización recibido: {code}")
+
 
                 if code:
                     flow.fetch_token(code=code[0])
